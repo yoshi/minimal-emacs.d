@@ -1,5 +1,21 @@
 ;;; post-init.el --- Post Init -*- no-byte-compile: t; lexical-binding: t; -*-
 
+(use-package emacs
+  :custom
+
+  ;; Enable indentation+completion using the TAB key.
+  ;; `completion-at-point' is often bound to M-TAB.
+  (tab-always-indent 'complete)
+
+  ;; Emacs 30 and newer: Disable Ispell completion function.
+  ;; Try `cape-dict' as an alternative.
+  (text-mode-ispell-word-completion nil)
+
+  ;; Hide commands in M-x which do not apply to the current mode.  Corfu
+  ;; commands are hidden, since they are not used via M-x. This setting is
+  ;; useful beyond Corfu.
+  (read-extended-command-predicate #'command-completion-default-include-p))
+
 ;; Environment Variable Synchronization (Essential for macOS users)
 (use-package exec-path-from-shell
   :if (and (or (display-graphic-p) (daemonp))
@@ -20,90 +36,46 @@
   ;; Initialize
   (exec-path-from-shell-initialize))
 
+;;
+;; Recent Things
+;;
+(use-package markdown-ts-mode
+  :ensure nil
+  :mode ("\\.md\\'" "\\.mdx\\'" "\\.markdown\\'")
+  :config
+  (require 'markdown-ts-mode-x))
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Package Management
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Auto upgrade Emacs packages
+;;
+;; This automates the process of updating installed packages
+(use-package auto-package-update
+  :custom
+  (auto-package-update-interval 7)
+  (auto-package-update-hide-results t)
+  (auto-package-update-delete-old-versions t)
+  ;; (auto-package-update-prompt-before-update t)
+  :config
+  (auto-package-update-maybe)
+  (auto-package-update-at-time "10:00"))
+
 ;; Allow Emacs to upgrade built-in packages, such as Org mode
 (setq package-install-upgrade-built-in t)
 
-;; Display the current line and column numbers in the mode line
-(setq line-number-mode t)
-(setq column-number-mode t)
-(setq mode-line-position-column-line-format '("%l:%C"))
 
-(setq display-time-day-and-date t
- 	  display-time-24hr-format t
- 	  display-time-use-mail-icon t
- 	  display-time-format "%Y-%m-%dT%H:%M%z" ; ISO 8601
-      display-time-default-load-average nil
- 	  display-time-interval 10)
-
-(when (memq window-system '(mac ns))
-  ;;(pixel-scroll-precision-mode 1)
-  ;;(fringe-mode 8)
-  (blink-cursor-mode t)
-  (setq mouse-yank-at-point t
-        mouse-wheel-mode t
-        indicate-buffer-boundaries 'left
-        mac-command-modifier 'meta
-		mac-option-modifier 'super))
-
-;; Display the time in the modeline
-(add-hook 'after-init-hook #'display-time-mode)
-
-;; Paren match highlighting
-(add-hook 'after-init-hook #'show-paren-mode)
-
-;; Window dividers separate windows visually. Window dividers are bars that can
-;; be dragged with the mouse, thus allowing you to easily resize adjacent
-;; windows.
-(add-hook 'after-init-hook #'window-divider-mode)
-
-;; Enables visual indication of minibuffer recursion depth after initialization.
-(add-hook 'after-init-hook #'minibuffer-depth-indicate-mode)
-
-;; Changing the default theme
-(let ((inhibit-redisplay t))
-  ;; Disable all active themes
-  (mapc #'disable-theme custom-enabled-themes)
-  ;; Load the built-in theme
-  (load-theme 'deeper-blue t))
-
-;; Changing the Default Font
-(set-face-attribute 'default nil
-                    :family "SF Mono"
-                    :width 'medium
-                    :height 130
-                    :weight 'normal)
-
-;; Constrain vertical cursor movement to lines within the buffer
-(setq dired-movement-style 'bounded-files)
-
-;; dired: Group directories first
-(with-eval-after-load 'dired
-  (let ((args "--group-directories-first -ahlv --time-style=long-iso"))
-    (when (or (eq system-type 'darwin) (eq system-type 'berkeley-unix))
-      (if-let* ((gls (executable-find "gls")))
-          (setq insert-directory-program gls)
-        (setq args nil)))
-    (when args
-      (setq dired-listing-switches args))))
-
-;; Configure Emacs to ask for confirmation before exiting
-;;(setq confirm-kill-emacs 'y-or-n-p)
-
-;; Enabled backups save your changes to a file intermittently
-(setq make-backup-files t)
-(setq vc-make-backup-files t)
-(setq kept-old-versions 10)
-(setq kept-new-versions 10)
-
-;; When tooltip-mode is enabled, certain UI elements (e.g., help text,
-;; mouse-hover hints) will appear as native system tooltips (pop-up windows),
-;; rather than as echo area messages. This is useful in graphical Emacs sessions
-;; where tooltips can appear near the cursor.
-(setq tooltip-hide-delay 20)    ; Time in seconds before a tooltip disappears (default: 10)
-(setq tooltip-delay 0.4)        ; Delay before showing a tooltip after mouse hover (default: 0.7)
-(setq tooltip-short-delay 0.08) ; Delay before showing a short tooltip (Default: 0.1)
-(tooltip-mode 1)
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Buffer Management
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Track changes in the window configuration, allowing undoing actions such as
 ;; closing windows.
 (setq winner-boring-buffers '("*Completions*"
@@ -123,12 +95,206 @@
                               "*esh command on file*"))
 (add-hook 'after-init-hook #'winner-mode)
 
+(use-package uniquify
+  :ensure nil
+  :custom
+  (uniquify-buffer-name-style 'reverse)
+  (uniquify-separator "•")
+  (uniquify-after-kill-buffer-p t))
+
+(use-package golden-ratio
+  :disabled
+  :hook (after-init . golden-ratio-mode)
+  :custom
+  (golden-ratio-exclude-modes '(occur-mode)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; UI
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(when (eq system-type 'darwin)
+  (setq mac-command-modifier 'meta)
+  (setq mac-option-modifier 'super))
+
+(when (display-graphic-p)
+  ;;(pixel-scroll-precision-mode 1)
+  ;;(fringe-mode 8)
+  (blink-cursor-mode t)
+  (toggle-scroll-bar 'right)
+  (toggle-horizontal-scroll-bar t)
+  (setq mouse-yank-at-point t)
+  (setq mouse-wheel-mode t)
+  (setq indicate-buffer-boundaries 'left))
+
+;; Changing the default theme
+(let ((inhibit-redisplay t))
+  ;; Disable all active themes
+  (mapc #'disable-theme custom-enabled-themes)
+  ;; Load the built-in theme
+  (load-theme 'starlit t))
+
+;; Changing the Default Font
+(set-face-attribute 'default nil
+                    :family "SF Mono"
+                    :width 'medium
+                    :height 130
+                    :weight 'normal)
+
+;; Window dividers separate windows visually. Window dividers are bars that can
+;; be dragged with the mouse, thus allowing you to easily resize adjacent
+;; windows.
+(add-hook 'after-init-hook #'window-divider-mode)
+
+;; Enables visual indication of minibuffer recursion depth after initialization.
+(add-hook 'after-init-hook #'minibuffer-depth-indicate-mode)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Modeline Management
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Display the current line and column numbers in the mode line
+(setopt line-number-mode t)
+(setopt column-number-mode t)
+(setq mode-line-position-column-line-format '("%l:%C"))
+
+;; Display the time in the modeline
+;;(add-hook 'after-init-hook #'display-time-mode)
+
+(use-package minions
+  :commands minions-mode
+  :custom
+  (mode-line-modes-delimiters nil)
+  (minions-mode-line-lighter " …" nil)
+  :config
+  (force-mode-line-update t)
+  :hook (after-init . minions-mode))
+
+;; (use-package moody
+;;   :ensure t
+;;   :config
+;;   ;; (setq-default mode-line-format
+;;   ;;               '(""
+;;   ;;                 mode-line-front-space
+;;   ;;                 mode-line-client
+;;   ;;                 mode-line-frame-identification
+;;   ;;                 mode-line-buffer-identification
+;;   ;;                 " "
+;;   ;;                 mode-line-position
+;;   ;;                 (vc-mode vc-mode)
+;;   ;;                 (multiple-cursors-mode mc/mode-line)
+;;   ;;                 mode-line-modes
+;;   ;;                 mode-line-end-spaces))
+;;   (moody-replace-mode-line-front-space)
+;;   (moody-replace-mode-line-buffer-identification)
+;;   ;;(moody-replace-vc-mode)
+;;   (set-face-attribute 'mode-line-active nil :box 'unspecified)
+;;   (set-face-attribute 'mode-line-inactive nil :box 'unspecified))
+
+(use-package nyan-mode
+  :commands nyan-mode
+  :hook (after-init . nyan-mode))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Parenthesis
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Paren match highlighting
+(add-hook 'after-init-hook #'show-paren-mode)
+
+;; Which other customizations can be interesting to add?
+;;
+;;; Enable automatic insertion and management of matching pairs of characters
+;;; (e.g., (), {}, "") globally using `electric-pair-mode'.
+;; (use-package elec-pair
+;;   :ensure nil
+;;   :commands (electric-pair-mode
+;;              electric-pair-local-mode
+;;              electric-pair-delete-pair)
+;;   :hook (after-init . electric-pair-mode))
+
+
+;; Prevent parenthesis imbalance
+;; (use-package paredit
+;;   :commands paredit-mode
+;;   :hook
+;;   (emacs-lisp-mode . paredit-mode)
+;;   :config
+;;   (define-key paredit-mode-map (kbd "RET") nil))
+
+;; smartparens
+;; https://github.com/Fuco1/smartparens
+;; https://ebzzry.com/en/emacs-pairs/
+(use-package smartparens
+  :commands smartparens-mode
+  :hook (prog-mode)
+  :config
+  (require 'smartparens-config))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Time and Date
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(setq display-time-day-and-date t
+ 	  display-time-24hr-format t
+ 	  display-time-use-mail-icon t
+      display-time-format "%Y-%m-%dT%H:%M%z" ; ISO 8601
+      display-time-default-load-average nil
+ 	  display-time-interval 10)
+
 ;;; time things
 (defun insert-timestamp ()
   (interactive)
   (insert (format-time-string display-time-format (current-time))))
 
 (define-key global-map (kbd "C-x y t") 'insert-timestamp)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Filesystem
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Constrain vertical cursor movement to lines within the buffer
+(setq dired-movement-style 'bounded-files)
+
+;; dired: Group directories first
+(with-eval-after-load 'dired
+  (let ((args "--group-directories-first -ahlv --time-style=long-iso"))
+    (when (or (eq system-type 'darwin) (eq system-type 'berkeley-unix))
+      (if-let* ((gls (executable-find "gls")))
+          (setq insert-directory-program gls)
+        (setq args nil)))
+    (when args
+      (setq dired-listing-switches args))))
+
+;; Configure Emacs to ask for confirmation before exiting
+;;(setq confirm-kill-emacs 'y-or-n-p)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Backups
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Enabled backups save your changes to a file intermittently
+(setq make-backup-files t)
+(setq vc-make-backup-files t)
+(setq kept-old-versions 10)
+(setq kept-new-versions 10)
+
+
+;; When tooltip-mode is enabled, certain UI elements (e.g., help text,
+;; mouse-hover hints) will appear as native system tooltips (pop-up windows),
+;; rather than as echo area messages. This is useful in graphical Emacs sessions
+;; where tooltips can appear near the cursor.
+(setq tooltip-hide-delay 20)    ; Time in seconds before a tooltip disappears (default: 10)
+(setq tooltip-delay 0.4)        ; Delay before showing a tooltip after mouse hover (default: 0.7)
+(setq tooltip-short-delay 0.08) ; Delay before showing a short tooltip (Default: 0.1)
+(tooltip-mode 1)
 
 ;; In Emacs, customization variables modified via the UI (e.g., M-x customize)
 ;; are typically stored in a separate file, commonly named 'custom.el'. To
@@ -190,66 +356,68 @@
   :init
   (setq save-place-limit 400))
 
-;; auto-save-mode (Prevent data loss in case of crashes)
+;; Emacs server
+(use-package server
+  :ensure nil
+  :if (not (daemonp))
+  :commands (server-running-p
+             server-start)
+  :hook (after-init . my-server-start)
+  :preface
+  (defun my-server-start ()
+    "Start the Emacs server if no server process is currently active."
+    (unless (server-running-p)
+      (server-start))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; Enable `auto-save-mode' to prevent data loss. Use `recover-file' or
-;; `recover-session' to restore unsaved changes.
-(setq auto-save-default t)
-
-;; Trigger an auto-save after 300 keystrokes
-(setq auto-save-interval 300)
-
-;; Trigger an auto-save 30 seconds of idle time.
-(setq auto-save-timeout 30)
-
+;; Spell check
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (use-package jinx
-  :ensure t
   :custom
   (jinx-languages "en_US" t)
   :hook (emacs-startup . global-jinx-mode)
   :bind (("M-$" . jinx-correct)
 		 ("C-M-$" . jinx-languages)))
 
-;; Completion System (Corfu, Vertico, Consult)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; Corfu enhances in-buffer completion by displaying a compact popup with
-;; current candidates, positioned either below or above the point. Candidates
-;; can be selected by navigating up or down.
+;; Completion
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; corfu
+;; https://github.com/minad/corfu
 (use-package corfu
-  :commands (corfu-mode global-corfu-mode)
-
-  :hook ((prog-mode . corfu-mode)
-         (shell-mode . corfu-mode)
-         (eshell-mode . corfu-mode))
-
   :custom
-  ;; Hide commands in M-x which do not apply to the current mode.
-  (read-extended-command-predicate #'command-completion-default-include-p)
-  ;; Disable Ispell completion function. As an alternative try `cape-dict'.
-  (text-mode-ispell-word-completion nil)
-  (tab-always-indent 'complete)
+  (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
+  ;; (corfu-quit-at-boundary nil)   ;; Never quit at completion boundary
+  ;; (corfu-quit-no-match nil)      ;; Never quit, even if there is no match
+  ;; (corfu-preview-current nil)    ;; Disable current candidate preview
+  ;; (corfu-preselect 'prompt)      ;; Preselect the prompt
+  ;; (corfu-on-exact-match 'insert) ;; Configure handling of exact matches
+  (corfu-auto t)
 
   ;; Enable Corfu
   :config
-  (global-corfu-mode))
+  (global-corfu-mode)
+  (corfu-popupinfo-mode))
 
-;; Cape, or Completion At Point Extensions, extends the capabilities of
-;; in-buffer completion. It integrates with Corfu or the default completion UI,
-;; by providing additional backends through completion-at-point-functions.
+;; cape
+;; https://github.com/minad/cape
 (use-package cape
+  :after corfu
   :commands (cape-dabbrev cape-file cape-elisp-block)
   :bind ("C-c p" . cape-prefix-map)
   :init
-  ;; Add to the global default value of `completion-at-point-functions' which is
-  ;; used by `completion-at-point'.
   (add-hook 'completion-at-point-functions #'cape-dabbrev)
   (add-hook 'completion-at-point-functions #'cape-file)
   (add-hook 'completion-at-point-functions #'cape-elisp-block))
 
-;; Vertico, Consult, Marginalia, and Embark
-;;
-;; Vertico provides a vertical completion interface, making it easier to
-;; navigate and select from completion candidates (e.g., when `M-x` is pressed).
+;; vertico
+;; https://github.com/minad/vertico
 (use-package vertico
   ;; (Note: It is recommended to also enable the savehist package.)
   :custom
@@ -260,30 +428,22 @@
   :config
   (vertico-mode))
 
-;; Vertico leverages Orderless' flexible matching capabilities, allowing users
-;; to input multiple patterns separated by spaces, which Orderless then
-;; matches in any order against the candidates.
+;; orderless
+;; https://github.com/minad/orderless
 (use-package orderless
   :custom
   (completion-styles '(orderless basic))
   (completion-category-defaults nil)
   (completion-category-overrides '((file (styles partial-completion)))))
 
-;; Marginalia allows Embark to offer you preconfigured actions in more contexts.
-;; In addition to that, Marginalia also enhances Vertico by adding rich
-;; annotations to the completion candidates displayed in Vertico's interface.
+;; https://github.com/minad/marginalia
 (use-package marginalia
   :commands (marginalia-mode marginalia-cycle)
-  :hook (after-init . marginalia-mode))
+  :hook (after-init . marginalia-mode)
+  :custom
+  (marginalia-max-relative-age 0))
 
-;; Embark integrates with Consult and Vertico to provide context-sensitive
-;; actions and quick access to commands based on the current selection, further
-;; improving user efficiency and workflow within Emacs. Together, they create a
-;; cohesive and powerful environment for managing completions and interactions.
 (use-package embark
-  ;; Embark is an Emacs package that acts like a context menu, allowing
-  ;; users to perform context-sensitive actions on selected items
-  ;; directly from the completion interface.
   :commands (embark-act
              embark-dwim
              embark-export
@@ -309,8 +469,6 @@
   :hook
   (embark-collect-mode . consult-preview-at-point-mode))
 
-;; Consult offers a suite of commands for efficient searching, previewing, and
-;; interacting with buffers, file contents, and more, improving various tasks.
 (use-package consult
   :bind (;; C-c bindings in `mode-specific-map'
          ("C-c M-x" . consult-mode-command)
@@ -435,7 +593,7 @@
              easysession-load-including-geometry)
 
   :custom
-  (easysession-mode-line-misc-info t)  ; Display the session in the modeline
+  ;; (easysession-mode-line-misc-info t)  ; Display the session in the modeline
   (easysession-save-interval (* 10 60))  ; Save every 10 minutes
 
   :init
@@ -463,35 +621,44 @@
     (add-hook 'emacs-startup-hook #'easysession-load-including-geometry 102)
     (add-hook 'emacs-startup-hook #'easysession-save-mode 103)))
 
+
+
+
+
+
 ;; Configuring markdown-mode (e.g., README.md syntax)
 ;;
 ;; The markdown-mode package provides a major mode for Emacs for syntax
 ;; highlighting, editing commands, and preview support for Markdown documents.
 ;; It supports core Markdown syntax as well as extensions like GitHub Flavored
 ;; Markdown (GFM).
-(use-package markdown-mode
-  :commands (gfm-mode
-             gfm-view-mode
-             markdown-mode
-             markdown-view-mode)
-  :mode (("\\.markdown\\'" . markdown-mode)
-         ("\\.md\\'" . markdown-mode)
-         ("README\\.md\\'" . gfm-mode))
-  :bind
-  (:map markdown-mode-map
-        ("C-c C-e" . markdown-do)))
+;; (use-package markdown-mode
+;;   :commands (gfm-mode
+;;              gfm-view-mode
+;;              markdown-mode
+;;              markdown-view-mode)
+;;   :mode (("\\.markdown\\'" . markdown-mode)
+;;          ("\\.md\\'" . markdown-mode)
+;;          ("README\\.md\\'" . gfm-mode))
+;;   :bind
+;;   (:map markdown-mode-map
+;;         ("C-c C-e" . markdown-do)))
 
 ;; Automatically generate a table of contents when editing Markdown files
-(use-package markdown-toc
-  :commands (markdown-toc-generate-toc
-             markdown-toc-generate-or-refresh-toc
-             markdown-toc-delete-toc
-             markdown-toc--toc-already-present-p)
-  :custom
-  (markdown-toc-header-toc-title "**Table of Contents**"))
+;; (use-package markdown-toc
+;;   :commands (markdown-toc-generate-toc
+;;              markdown-toc-generate-or-refresh-toc
+;;              markdown-toc-delete-toc
+;;              markdown-toc--toc-already-present-p)
+;;   :custom
+;;   (markdown-toc-header-toc-title "**Table of Contents**"))
 
 ;; Kirigami: A unified interface for opening and closing folds
 (use-package kirigami
+  :custom
+  (kirigami-show-context-menu t)
+  :config
+  (kirigami-global-mode 1)
   :commands (kirigami-open-fold
              kirigami-open-fold-rec
              kirigami-close-fold
@@ -657,67 +824,6 @@
   ;; Suppress verbose messages
   (setq yas-verbosity 0))
 
-;; Spell checker
-;;
-;; The flyspell package is a built-in Emacs minor mode that provides
-;; on-the-fly spell checking. It highlights misspelled words as you type,
-;; offering interactive corrections. In text modes, it checks the entire buffer,
-;; while in programming modes, it typically checks only comments and strings. It
-;; integrates with external spell checkers like aspell, hunspell, or
-;; ispell to provide suggestions and corrections.
-;;
-;; NOTE: flyspell-mode can become slow when using Aspell, especially with large
-;; buffers or aggressive suggestion settings like --sug-mode=ultra. This
-;; slowdown occurs because Flyspell checks words dynamically as you type or
-;; navigate text, requiring frequent communication between Emacs and the
-;; external Aspell process. Each check involves sending words to Aspell and
-;; receiving results, which introduces overhead from process invocation and
-;; inter-process communication.
-(use-package ispell
-  :ensure nil
-  :commands (ispell ispell-minor-mode)
-  :custom
-  (ispell-quietly t)
-
-  ;; Set the ispell program name to aspell
-  (ispell-program-name "aspell")
-
-  ;; Define the "en_US" spell-check dictionary locally, telling Emacs to use
-  ;; UTF-8 encoding, match words using alphabetic characters, allow apostrophes
-  ;; inside words, treat non-alphabetic characters as word boundaries, and pass
-  ;; -d en_US to the underlying spell-check program.
-  (ispell-local-dictionary-alist
-   '(("en_US" "[[:alpha:]]" "[^[:alpha:]]" "[']" nil ("-d" "en_US") nil utf-8)))
-
-  ;; Configures Aspell's suggestion mode to "ultra", which provides more
-  ;; aggressive and detailed suggestions for misspelled words. The language
-  ;; is set to "en_US" for US English, which can be replaced with your desired
-  ;; language code (e.g., "en_GB" for British English, "de_DE" for German).
-  (ispell-extra-args '(; "--sug-mode=ultra"
-                       "--lang=en_US")))
-
-;; The flyspell package is a built-in Emacs minor mode that provides
-;; on-the-fly spell checking. It highlights misspelled words as you type,
-;; offering interactive corrections.
-(use-package flyspell
-  :ensure nil
-  :commands flyspell-mode
-  :hook
-  (; (prog-mode . flyspell-prog-mode)
-   (text-mode . (lambda()
-                  (if (or (derived-mode-p 'yaml-mode)
-                          (derived-mode-p 'yaml-ts-mode)
-                          (derived-mode-p 'ansible-mode))
-                      (flyspell-prog-mode 1)
-                    (flyspell-mode 1)))))
-  :config
-  ;; Remove strings from Flyspell
-  (setq flyspell-prog-text-faces (delq 'font-lock-string-face
-                                       flyspell-prog-text-faces))
-
-  ;; Remove doc from Flyspell
-  (setq flyspell-prog-text-faces (delq 'font-lock-doc-face
-                                       flyspell-prog-text-faces)))
 
 ;; Automatic removal of trailing whitespace on save
 ;;
@@ -748,41 +854,74 @@
   (stripspace-restore-column t))
 
 ;; Highlighting uncommitted changes in the buffer margin (e.g., Git changes)
-;; (use-package diff-hl
-;;   :commands (diff-hl-mode
-;;              global-diff-hl-mode)
-;;   :hook (prog-mode . diff-hl-mode)
-;;   :init
-;;   (setq diff-hl-flydiff-delay 0.4)  ; Faster
-;;   (setq diff-hl-show-staged-changes nil)  ; Realtime feedback
-;;   (setq diff-hl-update-async t)  ; Do not block Emacs
-;;   (setq diff-hl-global-modes '(not pdf-view-mode image-mode)))
+(use-package diff-hl
+  :commands (diff-hl-mode
+             global-diff-hl-mode)
+  :hook (prog-mode . diff-hl-mode)
+  :init
+  (setq diff-hl-flydiff-delay 0.4)  ; Faster
+  (setq diff-hl-show-staged-changes nil)  ; Realtime feedback
+  (setq diff-hl-update-async t)  ; Do not block Emacs
+  (setq diff-hl-global-modes '(not pdf-view-mode image-mode)))
+
+(add-hook 'dired-mode-hook 'diff-hl-dired-mode)
+(add-hook 'magit-post-refresh-hook 'diff-hl-magit-post-refresh)
 
 ;; Configuring org-mode
-;;
-;; Org mode is a major mode designed for organizing notes, planning, task
-;; management, and authoring documents using plain text with a simple and
-;; expressive markup syntax. It supports hierarchical outlines, TODO lists,
-;; scheduling, deadlines, time tracking, and exporting to multiple formats
-;; including HTML, LaTeX, PDF, and Markdown.
 (use-package org
   :commands (org-mode org-version)
   :mode
   ("\\.org\\'" . org-mode)
   :custom
-  (org-hide-leading-stars t)
+  ;;(org-hide-leading-stars t)
   (org-startup-indented t)
-  (org-adapt-indentation nil)
-  (org-edit-src-content-indentation 0)
+  ;;(org-adapt-indentation nil)
+  ;;(org-src-content-indentation 0)
   ;; (org-fontify-done-headline t)
   ;; (org-fontify-todo-headline t)
   ;; (org-fontify-whole-heading-line t)
   ;; (org-fontify-quote-and-verse-blocks t)
-  (org-startup-truncated t))
+  ;;(org-startup-truncated t)
+  )
 
-(use-package org-appear
-  :commands org-appear-mode
-  :hook (org-mode . org-appear-mode))
+(use-package ob-lilypond
+  :ensure nil
+  :custom
+  (org-babel-lilypond-commands '("lilypond" "" ""))
+  :config
+  ;; fix the bloody case of the lilypond package reference.
+
+  (setf (cdr (assoc "lilypond" org-src-lang-modes)) 'lilypond)
+  )
+
+
+;; Ugh, trying to figure out the best way to alter alists
+;;
+;; (add-to-list 'org-src-lang-modes '("lilypond" . LilyPond))
+;; (message "before: %s\n" org-src-lang-modes)
+;; (delete '("lilypond" . LilyPond) org-src-lang-modes)
+;; (message "after: %s\n" org-src-lang-modes)
+;; (add-to-list 'org-src-lang-modes '("lilypond" . lilypond))
+;; (message "more after: %s\n" org-src-lang-modes)
+;; (message "result: %s\n" (assoc "lilypond" org-src-lang-modes))
+
+(use-package lilypond-mode
+  :ensure nil
+  :mode
+  (("\\.ly\\'" . lilypond-mode)
+   ("\\.ily\\'" . lilypond-mode))
+  :init
+  (turn-on-font-lock))
+
+;; (use-package org-appear
+;;   :commands org-appear-mode
+;;   :hook (org-mode . org-appear-mode))
+
+;; org-modern
+;; https://github.com/minad/org-modern
+;; (use-package org-modern
+;;   :commands (org-modern-mode global-org-modern-mode)
+;;   :hook (org-mode . org-modern-mode))
 
 ;; Configuring LSP Servers with Eglot (built-in)
 ;;
@@ -793,172 +932,118 @@
              eglot-rename
              eglot-format-buffer))
 
-;; Auto upgrade Emacs packages
-;;
-;; This automates the process of updating installed packages
-(use-package auto-package-update
-  :custom
-  ;; Set the number of days between automatic updates.
-  ;; Here, packages will only be updated if at least 7 days have passed
-  ;; since the last successful update.
-  (auto-package-update-interval 7)
-
-  ;; Suppress display of the *auto-package-update results* buffer after updates.
-  ;; This keeps the user interface clean and avoids unnecessary interruptions.
-  (auto-package-update-hide-results t)
-
-  ;; Automatically delete old package versions after updates to reduce disk
-  ;; usage and keep the package directory clean. This prevents the accumulation
-  ;; of outdated files in Emacs’s package directory, which consume
-  ;; unnecessary disk space over time.
-  (auto-package-update-delete-old-versions t)
-
-  ;; Uncomment the following line to enable a confirmation prompt
-  ;; before applying updates. This can be useful if you want manual control.
-  ;; (auto-package-update-prompt-before-update t)
-
-  :config
-  ;; Run package updates automatically at startup, but only if the configured
-  ;; interval has elapsed.
-  (auto-package-update-maybe)
-
-  ;; Schedule a background update attempt daily at 10:00 AM.
-  ;; This uses Emacs' internal timer system. If Emacs is running at that time,
-  ;; the update will be triggered. Otherwise, the update is skipped for that
-  ;; day. Note that this scheduled update is independent of
-  ;; `auto-package-update-maybe` and can be used as a complementary or
-  ;; alternative mechanism.
-  (auto-package-update-at-time "10:00"))
-
-;; Safely terminating unused buffers
-(use-package buffer-terminator
-  :custom
-  ;; Enable/Disable verbose mode to log buffer cleanup events
-  (buffer-terminator-verbose nil)
-
-  ;; Set the inactivity timeout (in seconds) after which buffers are considered
-  ;; inactive (default is 30 minutes):
-  (buffer-terminator-inactivity-timeout (* 30 60)) ; 30 minutes
-
-  ;; Define how frequently the cleanup process should run (default is every 10
-  ;; minutes):
-  (buffer-terminator-interval (* 10 60)) ; 10 minutes
-
-  :config
-  (buffer-terminator-mode 1))
-
 ;; Treemacs, a tree layout file explorer (Sidebar file explorer)
 ;;
 ;; A file and project explorer for Emacs that displays a structured tree
 ;; layout, similar to file browsers in modern IDEs. It functions as a sidebar
 ;; in the left window, providing a persistent view of files, projects, and
 ;; other elements.
-(use-package treemacs
-  :commands (treemacs
-             treemacs-select-window
-             treemacs-delete-other-windows
-             treemacs-select-directory
-             treemacs-bookmark
-             treemacs-find-file
-             treemacs-find-tag)
+;; (use-package treemacs
+;;   :commands (treemacs
+;;              treemacs-select-window
+;;              treemacs-delete-other-windows
+;;              treemacs-select-directory
+;;              treemacs-bookmark
+;;              treemacs-find-file
+;;              treemacs-find-tag)
+;;
+;;   :bind
+;;   (:map global-map
+;;         ("M-0"       . treemacs-select-window)
+;;         ("C-x t 1"   . treemacs-delete-other-windows)
+;;         ("C-x t t"   . treemacs)
+;;         ("C-x t d"   . treemacs-select-directory)
+;;         ("C-x t B"   . treemacs-bookmark)
+;;         ("C-x t C-t" . treemacs-find-file)
+;;         ("C-x t M-t" . treemacs-find-tag))
+;;
+;;   :init
+;;   (with-eval-after-load 'winum
+;;     (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
+;;
+;;   :config
+;;   (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
+;;         treemacs-deferred-git-apply-delay        0.5
+;;         treemacs-directory-name-transformer      #'identity
+;;         treemacs-display-in-side-window          t
+;;         treemacs-eldoc-display                   'simple
+;;         treemacs-file-event-delay                2000
+;;         treemacs-file-extension-regex            treemacs-last-period-regex-value
+;;         treemacs-file-follow-delay               0.2
+;;         treemacs-file-name-transformer           #'identity
+;;         treemacs-follow-after-init               t
+;;         treemacs-expand-after-init               t
+;;         treemacs-find-workspace-method           'find-for-file-or-pick-first
+;;         treemacs-git-command-pipe                ""
+;;         treemacs-goto-tag-strategy               'refetch-index
+;;         treemacs-header-scroll-indicators        '(nil . "^^^^^^")
+;;         treemacs-hide-dot-git-directory          t
+;;         treemacs-indentation                     2
+;;         treemacs-indentation-string              " "
+;;         treemacs-is-never-other-window           nil
+;;         treemacs-max-git-entries                 5000
+;;         treemacs-missing-project-action          'ask
+;;         treemacs-move-files-by-mouse-dragging    t
+;;         treemacs-move-forward-on-expand          nil
+;;         treemacs-no-png-images                   nil
+;;         treemacs-no-delete-other-windows         t
+;;         treemacs-project-follow-cleanup          nil
+;;         treemacs-persist-file                    (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
+;;         treemacs-position                        'left
+;;         treemacs-read-string-input               'from-child-frame
+;;         treemacs-recenter-distance               0.1
+;;         treemacs-recenter-after-file-follow      nil
+;;         treemacs-recenter-after-tag-follow       nil
+;;         treemacs-recenter-after-project-jump     'always
+;;         treemacs-recenter-after-project-expand   'on-distance
+;;         treemacs-litter-directories              '("/node_modules" "/.venv" "/.cask")
+;;         treemacs-project-follow-into-home        nil
+;;         treemacs-show-cursor                     nil
+;;         treemacs-show-hidden-files               t
+;;         treemacs-silent-filewatch                nil
+;;         treemacs-silent-refresh                  nil
+;;         treemacs-sorting                         'alphabetic-asc
+;;         treemacs-select-when-already-in-treemacs 'move-back
+;;         treemacs-space-between-root-nodes        t
+;;         treemacs-tag-follow-cleanup              t
+;;         treemacs-tag-follow-delay                1.5
+;;         treemacs-text-scale                      nil
+;;         treemacs-user-mode-line-format           nil
+;;         treemacs-user-header-line-format         nil
+;;         treemacs-wide-toggle-width               70
+;;         treemacs-width                           35
+;;         treemacs-width-increment                 1
+;;         treemacs-width-is-initially-locked       t
+;;         treemacs-workspace-switch-cleanup        nil)
+;;
+;;   ;; The default width and height of the icons is 22 pixels. If you are
+;;   ;; using a Hi-DPI display, uncomment this to double the icon size.
+;;   ;; (treemacs-resize-icons 44)
+;;
+;;   (treemacs-follow-mode t)
+;;   (treemacs-filewatch-mode t)
+;;   (treemacs-fringe-indicator-mode 'always)
+;;
+;;   ;;(when treemacs-python-executable
+;;   ;;  (treemacs-git-commit-diff-mode t))
+;;
+;;   (pcase (cons (not (null (executable-find "git")))
+;;                (not (null treemacs-python-executable)))
+;;     (`(t . t)
+;;      (treemacs-git-mode 'deferred))
+;;     (`(t . _)
+;;      (treemacs-git-mode 'simple)))
+;;
+;;   (treemacs-hide-gitignored-files-mode nil))
 
-  :bind
-  (:map global-map
-        ("M-0"       . treemacs-select-window)
-        ("C-x t 1"   . treemacs-delete-other-windows)
-        ("C-x t t"   . treemacs)
-        ("C-x t d"   . treemacs-select-directory)
-        ("C-x t B"   . treemacs-bookmark)
-        ("C-x t C-t" . treemacs-find-file)
-        ("C-x t M-t" . treemacs-find-tag))
+;;(use-package treemacs-icons-dired
+;;  :hook (dired-mode . treemacs-icons-dired-enable-once))
 
-  :init
-  (with-eval-after-load 'winum
-    (define-key winum-keymap (kbd "M-0") #'treemacs-select-window))
+;;(use-package treemacs-tab-bar  ; treemacs-tab-bar if you use tab-bar-mode
+;;  :after (treemacs)
+;;  :config (treemacs-set-scope-type 'Tabs))
 
-  :config
-  (setq treemacs-collapse-dirs                   (if treemacs-python-executable 3 0)
-        treemacs-deferred-git-apply-delay        0.5
-        treemacs-directory-name-transformer      #'identity
-        treemacs-display-in-side-window          t
-        treemacs-eldoc-display                   'simple
-        treemacs-file-event-delay                2000
-        treemacs-file-extension-regex            treemacs-last-period-regex-value
-        treemacs-file-follow-delay               0.2
-        treemacs-file-name-transformer           #'identity
-        treemacs-follow-after-init               t
-        treemacs-expand-after-init               t
-        treemacs-find-workspace-method           'find-for-file-or-pick-first
-        treemacs-git-command-pipe                ""
-        treemacs-goto-tag-strategy               'refetch-index
-        treemacs-header-scroll-indicators        '(nil . "^^^^^^")
-        treemacs-hide-dot-git-directory          t
-        treemacs-indentation                     2
-        treemacs-indentation-string              " "
-        treemacs-is-never-other-window           nil
-        treemacs-max-git-entries                 5000
-        treemacs-missing-project-action          'ask
-        treemacs-move-files-by-mouse-dragging    t
-        treemacs-move-forward-on-expand          nil
-        treemacs-no-png-images                   nil
-        treemacs-no-delete-other-windows         t
-        treemacs-project-follow-cleanup          nil
-        treemacs-persist-file                    (expand-file-name ".cache/treemacs-persist" user-emacs-directory)
-        treemacs-position                        'left
-        treemacs-read-string-input               'from-child-frame
-        treemacs-recenter-distance               0.1
-        treemacs-recenter-after-file-follow      nil
-        treemacs-recenter-after-tag-follow       nil
-        treemacs-recenter-after-project-jump     'always
-        treemacs-recenter-after-project-expand   'on-distance
-        treemacs-litter-directories              '("/node_modules" "/.venv" "/.cask")
-        treemacs-project-follow-into-home        nil
-        treemacs-show-cursor                     nil
-        treemacs-show-hidden-files               t
-        treemacs-silent-filewatch                nil
-        treemacs-silent-refresh                  nil
-        treemacs-sorting                         'alphabetic-asc
-        treemacs-select-when-already-in-treemacs 'move-back
-        treemacs-space-between-root-nodes        t
-        treemacs-tag-follow-cleanup              t
-        treemacs-tag-follow-delay                1.5
-        treemacs-text-scale                      nil
-        treemacs-user-mode-line-format           nil
-        treemacs-user-header-line-format         nil
-        treemacs-wide-toggle-width               70
-        treemacs-width                           35
-        treemacs-width-increment                 1
-        treemacs-width-is-initially-locked       t
-        treemacs-workspace-switch-cleanup        nil)
-
-  ;; The default width and height of the icons is 22 pixels. If you are
-  ;; using a Hi-DPI display, uncomment this to double the icon size.
-  ;; (treemacs-resize-icons 44)
-
-  (treemacs-follow-mode t)
-  (treemacs-filewatch-mode t)
-  (treemacs-fringe-indicator-mode 'always)
-
-  ;;(when treemacs-python-executable
-  ;;  (treemacs-git-commit-diff-mode t))
-
-  (pcase (cons (not (null (executable-find "git")))
-               (not (null treemacs-python-executable)))
-    (`(t . t)
-     (treemacs-git-mode 'deferred))
-    (`(t . _)
-     (treemacs-git-mode 'simple)))
-
-  (treemacs-hide-gitignored-files-mode nil))
-
-(use-package treemacs-icons-dired
-  :hook (dired-mode . treemacs-icons-dired-enable-once))
-
-(use-package treemacs-tab-bar  ; treemacs-tab-bar if you use tab-bar-mode
-  :after (treemacs)
-  :config (treemacs-set-scope-type 'Tabs))
-
-(treemacs-start-on-boot)
+;;(treemacs-start-on-boot)
 
 ;; A better Emacs *help* buffer
 ;;
@@ -1016,14 +1101,6 @@
   :commands highlight-defined-mode
   :hook
   (emacs-lisp-mode . highlight-defined-mode))
-
-;; Prevent parenthesis imbalance
-(use-package paredit
-  :commands paredit-mode
-  :hook
-  (emacs-lisp-mode . paredit-mode)
-  :config
-  (define-key paredit-mode-map (kbd "RET") nil))
 
 ;; Provides functions to find references to functions, macros, variables,
 ;; special forms, and symbols in Emacs Lisp
@@ -1091,42 +1168,7 @@
   (setq vterm-kill-buffer-on-exit t)
   (setq vterm-max-scrollback 5000))
 
-;; Emacs server
-;; The Emacs server allows external programs such as `emacsclient' to connect to
-;; a single running instance of Emacs. This makes it possible to open files in
-;; the existing session rather than starting a new Emacs process each time.
-;;
-;; Once the server is running, the `emacsclient' command can be used in the
-;; terminal to open files in the active Emacs session. For example, running the
-;; following command opens the file in the existing Emacs frame without blocking
-;; the terminal process.
-;;   emacsclient -n filename.txt
-;;
-(use-package server
-  :ensure nil
-  :if (not (daemonp))
-  :commands (server-running-p
-             server-start)
-  :hook (after-init . my-server-start)
-  :preface
-  (defun my-server-start ()
-    "Start the Emacs server if no server process is currently active."
-    (unless (server-running-p)
-      (server-start))))
-
-;; Which other customizations can be interesting to add?
-;;
-;;; Enable automatic insertion and management of matching pairs of characters
-;;; (e.g., (), {}, "") globally using `electric-pair-mode'.
-(use-package elec-pair
-  :ensure nil
-  :commands (electric-pair-mode
-             electric-pair-local-mode
-             electric-pair-delete-pair)
-  :hook (after-init . electric-pair-mode))
-
 (use-package which-key
-  :ensure nil ; builtin
   :commands which-key-mode
   :hook (after-init . which-key-mode)
   :custom
@@ -1135,16 +1177,13 @@
   (which-key-add-column-padding 1)
   (which-key-max-description-length 40))
 
-(use-package uniquify
-  :ensure nil
-  :custom
-  (uniquify-buffer-name-style 'reverse)
-  (uniquify-separator "•")
-  (uniquify-after-kill-buffer-p t))
+(use-package magit
+  :bind (("C-x g" . magit)
+         ("C-x C-g" . magit-status)))
 
 ;; File types
 ;;
-;; Support for Git files (.gitconfig, .gitignore, .gitattributes...)
+;; https://github.com/magit/git-modes
 (use-package git-modes
   :commands (gitattributes-mode
              gitconfig-mode
@@ -1178,10 +1217,10 @@
 ;; NOTE: Prefer the tree-sitter-based yaml-ts-mode over yaml-mode when
 ;; available, as it provides more accurate syntax parsing and enhanced editing
 ;; features.
-(use-package yaml-mode
-  :commands yaml-mode
-  :mode (("\\.yaml\\'" . yaml-mode)
-         ("\\.yml\\'" . yaml-mode)))
+(use-package yaml-ts-mode
+  :commands yaml-ts-mode
+  :mode (("\\.yaml\\'" . yaml-ts-mode)
+         ("\\.yml\\'" . yaml-ts-mode)))
 
 ;; Support for Gnuplot files
 (use-package gnuplot
@@ -1208,11 +1247,27 @@
 ;; NOTE: Prefer the tree-sitter-based go-ts-mode over go-mode
 ;; when available, as it provides more accurate syntax parsing and enhanced
 ;; editing features.
-(use-package go-mode
-  :commands go-mode
-  :mode ("\\.go\\'" . go-mode))
+(use-package go-ts-mode
+  :commands go-ts-mode
+  :mode ("\\.go\\'" . go-ts-mode))
 
 ;; Support for Haskell
 (use-package haskell-mode
   :commands haskell-mode
   :mode ("\\.hs\\'" . haskell-mode))
+
+(use-package zig-ts-mode
+  :commands zig-ts-mode
+  :mode ("\\.zig\\'" . zig-ts-mode))
+
+(use-package vertico-posframe
+  :custom
+  (vertico-posframe-parameters
+   '((left-fringe . 8)
+     (right-fringe . 8))))
+
+;; dashboard
+;; https://github.com/emacs-dashboard/dashboard
+;; (use-package dashboard
+;;   :config
+;;   (dashboard-setup-startup-hook))

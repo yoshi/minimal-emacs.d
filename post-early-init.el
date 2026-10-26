@@ -10,6 +10,10 @@
                                    ("nongnu"       . 60)
                                    ("melpa-stable" . 50)))
 
+(require 'comp)
+(setq native-comp-driver-options
+      (cons "-mmacosx-version-min=11" native-comp-driver-options))
+
 ;; (setq package-pinned-packages
 ;;       '((annalist                      . "melpa-stable")
 ;;         (ansible-doc                   . "melpa-stable")
